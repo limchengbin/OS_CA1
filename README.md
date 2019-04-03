@@ -8,9 +8,9 @@ The initial value of the memory is 0x7e,~.
 Initial frame number that use to store the content is also randomised between 2 ~ 176 as there will be only 80 pages to store 20480 
 data. Storing the data will be continue until the system reach the number of data needed.
 
-## Page Table Entry
-The page table entry is storing the frame number, persent bit and valid bit.
-Frame number: 
+## Add new page entry
+The page entry that points to disk memory will be added to the empty entry, which the content is 0x7e and present bit =0 in page table
+Frame number:  frame number is the physical frame number that mapped to the virtual page number
 Present Bit: Indicate what pages are currently present in physical memory or are on disk, and can indicate how to 
 treat these different pages. For example, to load a page from disk if the present bit is 0, means the data is stored ont the disk.
 
