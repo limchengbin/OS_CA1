@@ -5,23 +5,29 @@
 
 void addTwoEntry(unsigned char *mainMemory)
 {
-  for (int i = 0; i < 256; ++i)
+  for (int i = 0; i < PAGE_SIZE ; ++i)
   {
-    if (mainMemory[i] == 0x7e)
+    if (mainMemory[i] == INITIAL_VALUE)
     {
       mainMemory[i] = 0x00;
-      mainMemory[i + 256] = 0x00;
+      mainMemory[i + PAGE_SIZE] = 0x00;
       mainMemory[i + 1] = 0x01;
-      mainMemory[i + 1 + 256] = 0x00;
+      mainMemory[i + 1 + PAGE_SIZE] = 0x00;
+      printf("\n");
+      printf("\tThe virtual address that saved in the disk is from %02x00 to %02xff\n", i, i + 1);
+      printf("\n");
+      i = PAGE_SIZE;
     }
   }
 }
 void assignDiskMemoryValue(unsigned char *diskMemory)
 {
   FILE *outputfileDiskMemory;
-  outputfileDiskMemory = fopen("/home/howdididie/solution/data/physical_memory.txt", "w");
+  outputfileDiskMemory = fopen("/home/howdididie/solution/data/disk_memory.txt", "w");
+  fprintf(outputfileDiskMemory, "Address\t|Framet\t|Content\n");
+  fprintf(outputfileDiskMemory, "__________________________\n");
 
-  for (int i = 0; i < 20480; ++i)
+  for (int i = 0; i < DISK_MEMORY_SIZE; ++i)
   {
     if (i < 512)
     {
@@ -32,18 +38,18 @@ void assignDiskMemoryValue(unsigned char *diskMemory)
     {
       diskMemory[i] = '~';
     }
-    fprintf(outputfileDiskMemory, "0x%04x\t|%03d\t|%c\n", i, i / 256, diskMemory[i]);
+    fprintf(outputfileDiskMemory, "0x%04x\t|%03d\t|%c\n", i, i / PAGE_SIZE, diskMemory[i]);
   }
 }
 void assignMemoryValue(unsigned char *mainMemory)
 {
   srand(time(0));
   int initialFrame = (rand() % (176 - 2)) + 2;
-  int noOfData = (rand() % (20480 - 2048)) + 2048;
+  int noOfData = (rand() % (MAX - MIN)) + MIN;
 
-  for (int i = 0; i < 65536; ++i)
+  for (int i = 0; i < PHYSICAL_MEMORY_SIZE; ++i)
   {
-    if (i >= initialFrame * 256 && i < (initialFrame * 256) + noOfData)
+    if (i >= initialFrame * PAGE_SIZE && i < (initialFrame * PAGE_SIZE) + noOfData)
     {
       char randomChar = (rand() % (125 - 33)) + 33;
       mainMemory[i] = randomChar;
@@ -53,46 +59,50 @@ void assignMemoryValue(unsigned char *mainMemory)
       mainMemory[i] = '~';
     }
   }
-  int pageRequired = noOfData % 256 == 0 ? noOfData / 256 : (noOfData / 256 + 1);
-  for (int i = 0; i < 256; i++)
+  int pageRequired = noOfData % PAGE_SIZE == 0 ? noOfData / PAGE_SIZE : (noOfData / PAGE_SIZE + 1);
+  for (int i = 0; i < NUMBER_OF_FRAMES; i++)
   {
     if (i < pageRequired)
     {
       mainMemory[i] = initialFrame;
       initialFrame++;
-      mainMemory[i + 256] = 0x01;
+      mainMemory[i + PAGE_SIZE] = 0x01;
     }
     else
     {
-      mainMemory[i + 256] = 0x00;
+      mainMemory[i + PAGE_SIZE] = 0x00;
     }
   }
   FILE *outputfileMaineMemory, *outputfilepPageTable;
   outputfileMaineMemory = fopen("/home/howdididie/solution/data/disk_memory.txt", "w");
   outputfilepPageTable = fopen("/home/howdididie/solution/data/page_table.txt", "w");
+  fprintf(outputfileMaineMemory, "Address\t|Frame\t|Content\n");
+  fprintf(outputfileMaineMemory, "_________________________\n");
 
-  for (int i = 0; i < 65536; i++)
+  fprintf(outputfilepPageTable, "Page\t|Frame\t|Present\n");
+  fprintf(outputfilepPageTable, "______________________\n");
+
+  for (int i = 0; i < PHYSICAL_MEMORY_SIZE; i++)
   {
-    if (i < 256)
+    if (i < NUMBER_OF_FRAMES)
     {
-      fprintf(outputfileMaineMemory, "0x%04x\t|%03d\t|0x%02x\n", i, i / 256, mainMemory[i]);
-      printf("%d: %x \n", i, mainMemory[mainMemory[i] * 256]);
-      if (mainMemory[mainMemory[i] * 256] != 0x7e)
+      fprintf(outputfileMaineMemory, "0x%04x\t|%03d\t|0x%02x\n", i, i / PAGE_SIZE, mainMemory[i]);
+      if (mainMemory[mainMemory[i] * PAGE_SIZE] != INITIAL_VALUE)
       {
         fprintf(outputfilepPageTable, "0x%02x\t|0x%02x\t|true\n", i, mainMemory[i]);
       }
-      else 
+      else
       {
         fprintf(outputfilepPageTable, "0x%02x\t|0x%02x\t|false\n", i, mainMemory[i]);
       }
     }
     else if (i < 512)
     {
-      fprintf(outputfileMaineMemory, "0x%04x\t|%03d\t|0x%02x\n", i, i / 256, mainMemory[i]);
+      fprintf(outputfileMaineMemory, "0x%04x\t|%03d\t|0x%02x\n", i, i / PAGE_SIZE, mainMemory[i]);
     }
     else
     {
-      fprintf(outputfileMaineMemory, "0x%04x\t|%03d\t|%c\n", i, i / 256, mainMemory[i]);
+      fprintf(outputfileMaineMemory, "0x%04x\t|%03d\t|%c\n", i, i / PAGE_SIZE, mainMemory[i]);
     }
   }
   fclose(outputfilepPageTable);
@@ -100,22 +110,22 @@ void assignMemoryValue(unsigned char *mainMemory)
 }
 void swapping(unsigned char *mainMemory, unsigned char *diskMemory, unsigned int pfn, unsigned int vpn)
 {
-  printf("Swapping is performing.\n");
+  printf("Swapping\n");
   int savedFrame = -1;
-  for (int i = 2; i < 256; ++i)
+  for (int i = 2; i < NUMBER_OF_FRAMES; ++i)
   {
-    if (mainMemory[i * 256] == 0x7e)
+    if (mainMemory[i * PAGE_SIZE] == INITIAL_VALUE)
     {
-      for (int j = 0; j < 256; ++j)
+      for (int j = 0; j < PAGE_SIZE; ++j)
       {
-        mainMemory[(i * 256) + j] = diskMemory[(pfn * 256) + j];
+        mainMemory[(i * PAGE_SIZE) + j] = diskMemory[(pfn * PAGE_SIZE) + j];
       }
       savedFrame = i;
-      i = 256;
+      i = NUMBER_OF_FRAMES;
     }
   }
   mainMemory[vpn] = savedFrame;
-  mainMemory[vpn + 256] = 0x01;
+  mainMemory[vpn + PAGE_SIZE] = 0x01;
 }
 void getUserInput(unsigned char *mainMemory, unsigned char *diskMemory)
 {
@@ -123,25 +133,28 @@ void getUserInput(unsigned char *mainMemory, unsigned char *diskMemory)
   while (answer != 2)
   {
     printf("Please select the options from the menu\n");
-    printf("1. Get the physical address\n");
-    printf("2. Exit\n");
+    printf("\t1. Get the physical address\n");
+    printf("\t2. Exit\n");
+    printf("Option selected: ");
     scanf("%d", &answer);
     if (answer == 1)
     {
       unsigned int userInput;
-      printf("Please enter virtual memory address in hexadecimal form (without 0x):");
+      printf("Enter the virtual memory address in hexadecimal form (e.g. ffff):");
       scanf("%04X", &userInput);
       printf("\n");
+
+//https://2019-moodle.dkit.ie/pluginfile.php/567340/mod_resource/content/2/32bit-address-parts.c
       unsigned int offset = userInput & 0x00FF;
       unsigned int vpn = userInput >> 8;
       unsigned int pfn = mainMemory[vpn];
       unsigned int address = pfn << 8;
       address |= offset;
-      if (pfn != 0x7e)
+      if (pfn != INITIAL_VALUE)
       {
-        if (mainMemory[vpn + 256] == 0x01)
+        if (mainMemory[vpn + PAGE_SIZE] == 0x01)
         {
-          printf("The data save in the address %x is %c\n", address, mainMemory[address]);
+          printf("\tThe data save in the address 0x%x is %c\n", address, mainMemory[address]);
         }
         else
         {
@@ -151,14 +164,13 @@ void getUserInput(unsigned char *mainMemory, unsigned char *diskMemory)
       }
       else
       {
-        printf("The address: %x is not storing any data\n", address);
+        printf("\tThe address: %x is not storing any data\n", address);
       }
-
-      printf("vpn: %x, pfn: %x, offset: %x, address: %x \n", vpn, pfn, offset, address);
     }
     else if (answer != 2)
     {
-      printf("Please enter valid option\n");
+      printf("\tPlease enter valid option\n");
     }
+    printf("\n");
   }
 }
